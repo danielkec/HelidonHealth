@@ -1,0 +1,109 @@
+<html>
+<meta charset="utf-8"/>
+<head>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css"
+          integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+          crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.5.1/dist/leaflet.js"
+            integrity="sha512-GffPMF3RvMeYyc1LWMHtK8EbPv0iNZ8/oTtHPx9/cc2ILxQ+u905qIwdpULaqDkyBKgOaB57QTMg7ztg8Jm2Og=="
+            crossorigin=""></script>
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js"
+            integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44="
+            crossorigin="anonymous"></script>
+    <style>
+        html {
+            font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        body {
+            position: relative;
+        }
+
+        #graph-panel {
+            padding: 40px;
+            margin: auto;
+            width: 30%;
+            text-align: center;
+        }
+
+        #fidget-spinner {
+            visibility: hidden;
+        }
+
+        #mapid {
+            height: 220px;
+        }
+    </style>
+</head>
+
+<body>
+<h1>Sport Graph service</h1>
+<button id="go-button">Generate Graph</button>
+<button id="go-map-button">Generate Map</button>
+<div id="graph-panel"><img id="fidget-spinner" src="fidget-spinner.gif"/></div>
+<div id="mapid"></div>
+</body>
+<script>
+    $(document).ready(function () {
+        $("#go-button").click(function () {
+            $("#graph-panel").html("<img id=\"fidget-spinner\" src=\"fidget-spinner.gif\"/>");
+            $("#fidget-spinner").css("visibility", "visible");
+            $.get("/graph/demo", function (data, status) {
+                $("#graph-panel").html(data);
+            }).fail(function () {
+                $("#graph-panel").html("ERROR");
+            });
+        });
+        $("#go-map-button").click(function () {
+            $("#graph-panel").html("<img id=\"fidget-spinner\" src=\"fidget-spinner.gif\"/>");
+            $("#fidget-spinner").css("visibility", "visible");
+            $.get("/graph/demoMap", function (data, status) {
+                $("#graph-panel").html(data);
+            }).fail(function () {
+                $("#graph-panel").html("ERROR");
+            });
+        });
+
+        var map = L.map('mapid').setView([50.0420200, 14.3315510], 14);
+        L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            subdomains: ['a', 'b', 'c']
+        }).addTo(map);
+
+
+        $.get("/graph/jsondata", function (data, status) {
+            data = JSON.parse(data);
+
+            var pointArray = [];
+            for (var i in data.trkseg) {
+                actTrk = data.trkseg[i];
+                var point = new L.LatLng(actTrk.lat, actTrk.lon);
+                pointArray.push(point);
+                if(0 === +i){
+                    // Start point
+                    var myIcon = L.icon({
+                        iconUrl: 'flag.png',
+                        iconSize: [48, 48],
+                        iconAnchor: [0, 48]
+                    });
+                    L.marker([actTrk.lat, actTrk.lon], {icon: myIcon}).addTo(map);
+                }
+            }
+
+            var polyline = new L.Polyline(pointArray, {
+                color: 'red',
+                weight: 3,
+                opacity: 0.5,
+                smoothFactor: 1
+            });
+            polyline.addTo(map);
+            var bounds = L.latLngBounds(pointArray);
+            map.fitBounds(bounds);
+        })
+
+
+    });
+</script>
+</html>
