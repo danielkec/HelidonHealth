@@ -14,13 +14,32 @@
 # limitations under the License.
 #
 
-app:
-  greeting: "Hello"
-
 server:
   port: 8080
   host: 0.0.0.0
-#  experimental:
-#    http2:
-#      enable: true
-#      max-content-length: 16384
+
+kafka:
+  graph-queue-producer:
+    topic_name: graph-queue
+    bootstrap_servers: localhost:9092
+    key_serializer: org.apache.kafka.common.serialization.LongSerializer
+    value_serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  graph-queue-consumer:
+    topic_name: graph-queue
+    bootstrap_servers: localhost:9092
+    group_id: job-queue-group
+    key_deserializer: org.apache.kafka.common.serialization.LongDeserializer
+    value_deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+  job-done-producer:
+    topic_name: graph-done
+    bootstrap_servers: localhost:9092
+    key_serializer: org.apache.kafka.common.serialization.LongSerializer
+    value_serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  job-done-consumer:
+    topic_name: graph-done
+    bootstrap_servers: localhost:9092
+    key_deserializer: org.apache.kafka.common.serialization.LongDeserializer
+    value_deserializer: org.apache.kafka.common.serialization.StringDeserializer

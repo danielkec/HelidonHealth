@@ -1,0 +1,7 @@
+FROM wurstmeister/kafka
+
+COPY init-topics.sh /tmp/
+
+RUN chmod a+x /tmp/*.sh
+
+CMD ["sh","-c","/tmp/init-topics.sh"]

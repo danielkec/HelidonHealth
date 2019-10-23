@@ -4,16 +4,15 @@ services:
 
   zookeeper:
     image: wurstmeister/zookeeper
+    container_name: sport-zookeeper
+    ports:
+    - "2181:2181"
     expose:
     - "2181"
 
   kafka:
-#    image: wurstmeister/kafka
+    image: wurstmeister/kafka
     container_name: sport-kafka
-    build:
-      context: .
-      dockerfile: ./Dockerfile
-#      image: sport-kafka:latest
     depends_on:
     - zookeeper
     ports:
@@ -22,3 +21,12 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+  kafka-init:
+    restart: on-failure:10
+    container_name: sport-kafka-init
+    build:
+      context: .
+      dockerfile: Dockerfile.init-topics
+    depends_on:
+      - kafka

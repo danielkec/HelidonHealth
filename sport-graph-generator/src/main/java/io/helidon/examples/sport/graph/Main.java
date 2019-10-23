@@ -18,6 +18,8 @@ package io.helidon.examples.sport.graph;
 
 import io.helidon.config.Config;
 import io.helidon.media.jsonp.server.JsonSupport;
+import io.helidon.messaging.kafka.SimpleKafkaClient;
+import io.helidon.messaging.kafka.SimpleKafkaConsumer;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerConfiguration;
 import io.helidon.webserver.StaticContentSupport;
@@ -26,11 +28,14 @@ import io.helidon.webserver.WebServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.logging.LogManager;
+import java.util.logging.Logger;
 
 /**
  * The application main class.
  */
 public final class Main {
+
+    private static Logger LOG = Logger.getLogger(Main.class.getName());
 
     /**
      * Cannot be instantiated.
@@ -66,19 +71,23 @@ public final class Main {
         ServerConfiguration serverConfig =
                 ServerConfiguration.create(config.get("server"));
 
+        // Set up kafka consumers
+        SimpleKafkaConsumer<Long, String> graphQueueConsumer = SimpleKafkaClient.createConsumer("graph-queue-consumer", config);
+
         WebServer server = WebServer.create(serverConfig, createRouting(config));
         server.start()
-                .thenAccept(ws -> {
-                    System.out.println(
-                            "WEB server is up! http://localhost:" + ws.port() + "/greet");
-                    ws.whenShutdown().thenRun(()
-                            -> System.out.println("WEB server is DOWN. Good bye!"));
-                })
+                .thenAccept(ws -> LOG.info(String.format("WEB server is up! http://localhost:%s/console", ws.port())))
                 .exceptionally(t -> {
-                    System.err.println("Startup failed: " + t.getMessage());
+                    LOG.severe(String.format("Startup failed: %s", t.getMessage()));
                     t.printStackTrace(System.err);
                     return null;
                 });
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            LOG.info("Shutting down ...");
+            graphQueueConsumer.close();
+            server.shutdown();
+        }));
 
         // Server threads are not daemon. No need to block. Just react.
         return server;
@@ -91,7 +100,6 @@ public final class Main {
      * @return routing configured with JSON support, a health check, and a service
      */
     private static Routing createRouting(Config config) {
-
         GraphService graphService = new GraphService(config);
         return Routing.builder()
                 .register(JsonSupport.create())
