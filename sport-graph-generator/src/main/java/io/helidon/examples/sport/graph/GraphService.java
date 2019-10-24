@@ -1,7 +1,8 @@
 package io.helidon.examples.sport.graph;
 
 import io.helidon.config.Config;
-import io.helidon.messaging.kafka.SimpleKafkaClient;
+import io.helidon.messaging.kafka.SimpleKafkaConsumer;
+import io.helidon.messaging.kafka.SimpleKafkaProducer;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
@@ -21,13 +22,14 @@ public class GraphService implements Service {
     private String demoSource;
 
     private static Logger LOG = Logger.getLogger(GraphService.class.getSimpleName());
+    private final SimpleKafkaProducer<Long, String> jobDoneProducer;
+    private final Config config;
 
-    GraphService(Config config) {
-        SimpleKafkaClient
-                .<Long, String>createConsumer("graph-queue-consumer", config)
-                .consumeAsync(r -> generateGraph(r.value()));
-
+    GraphService(SimpleKafkaConsumer<Long, String> graphQueueConsumer, SimpleKafkaProducer<Long, String> jobDoneProducer, Config config) {
+        this.jobDoneProducer = jobDoneProducer;
+        this.config = config;
         this.demoSource = new Scanner(this.getClass().getResourceAsStream("demo.R")).useDelimiter("\\A").next();
+        graphQueueConsumer.consumeAsync(r -> generateGraph(r.value()));
     }
 
     @Override
@@ -55,9 +57,7 @@ public class GraphService implements Service {
                 Duration.between(start, Instant.now()).toString()
                         .replaceAll("(PT)?(\\d+[.]?\\d*[HMS])", "$2 ")
                         .toLowerCase()));
-        SimpleKafkaClient
-                .<Long, String>createProducer("job-done-producer", Config.create())
-                .produce(resultSvg);
+        jobDoneProducer.produce(resultSvg);
     }
 
 }

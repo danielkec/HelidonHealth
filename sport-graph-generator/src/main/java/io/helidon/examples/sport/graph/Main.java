@@ -18,8 +18,8 @@ package io.helidon.examples.sport.graph;
 
 import io.helidon.config.Config;
 import io.helidon.media.jsonp.server.JsonSupport;
-import io.helidon.messaging.kafka.SimpleKafkaClient;
 import io.helidon.messaging.kafka.SimpleKafkaConsumer;
+import io.helidon.messaging.kafka.SimpleKafkaProducer;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerConfiguration;
 import io.helidon.webserver.StaticContentSupport;
@@ -72,9 +72,13 @@ public final class Main {
                 ServerConfiguration.create(config.get("server"));
 
         // Set up kafka consumers
-        SimpleKafkaConsumer<Long, String> graphQueueConsumer = SimpleKafkaClient.createConsumer("graph-queue-consumer", config);
+        SimpleKafkaConsumer<Long, String> graphQueueConsumer = new SimpleKafkaConsumer<>("graph-queue-consumer", config);
+        SimpleKafkaProducer<Long, String> jobDoneProducer = new SimpleKafkaProducer<>("job-done-producer", Config.create());
 
-        WebServer server = WebServer.create(serverConfig, createRouting(config));
+        // Set up services
+        GraphService graphService = new GraphService(graphQueueConsumer, jobDoneProducer, config);
+
+        WebServer server = WebServer.create(serverConfig, createRouting(graphService, config));
         server.start()
                 .thenAccept(ws -> LOG.info(String.format("WEB server is up! http://localhost:%s/console", ws.port())))
                 .exceptionally(t -> {
@@ -96,11 +100,11 @@ public final class Main {
     /**
      * Creates new {@link io.helidon.webserver.Routing}.
      *
-     * @param config configuration of this server
+     * @param graphService
+     * @param config       configuration of this server
      * @return routing configured with JSON support, a health check, and a service
      */
-    private static Routing createRouting(Config config) {
-        GraphService graphService = new GraphService(config);
+    private static Routing createRouting(GraphService graphService, Config config) {
         return Routing.builder()
                 .register(JsonSupport.create())
                 .register("/graph", graphService)
