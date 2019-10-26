@@ -22,6 +22,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.header.Header;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -45,7 +46,7 @@ import java.util.logging.Logger;
  * @see KafkaConfigProperties
  * @see io.helidon.config.Config
  */
-public class SimpleKafkaProducer<K, V> {
+public class SimpleKafkaProducer<K, V> implements Closeable {
 
     private static final Logger LOGGER = Logger.getLogger(SimpleKafkaProducer.class.getName());
     private final KafkaConfigProperties properties;
@@ -67,7 +68,8 @@ public class SimpleKafkaProducer<K, V> {
     }
 
     /**
-     * Send record to all provided topics
+     * Send record to all provided topics,
+     * blocking until all records are acknowledged by broker
      *
      * @param value Will be serialized by <b>value.serializer</b> class
      *              defined in {@link KafkaConfigProperties configuration}
@@ -86,6 +88,10 @@ public class SimpleKafkaProducer<K, V> {
             }
         }
         return metadataList;
+    }
+
+    public List<Future<RecordMetadata>> produceAsync(V value) {
+        return this.produceAsync(null, null, null, null, value, null);
     }
 
     /**
@@ -124,5 +130,10 @@ public class SimpleKafkaProducer<K, V> {
             recordMetadataFutures.add(producer.send(record));
         }
         return recordMetadataFutures;
+    }
+
+    @Override
+    public void close() {
+        producer.close();
     }
 }

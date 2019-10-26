@@ -70,15 +70,20 @@ public class KafkaConfigProperties extends Properties {
         config.get("kafka").get(confName).asNodeList().get().forEach(this::addProperty);
     }
 
-    private void addProperty(Config c) {
-        String key = c.key().name().replaceAll("_", ".");
-        this.setProperty(key, c.asString().get());
-    }
-
+    /**
+     * Split comma separated topic names
+     *
+     * @return list of topic names
+     */
     protected List<String> getTopicNameList() {
         return Arrays.stream(getProperty(TOPIC_NAME)
                 .split(","))
                 .map(String::trim)
                 .collect(Collectors.toList());
+    }
+
+    private void addProperty(Config c) {
+        String key = c.key().name().replaceAll("_", ".");
+        this.setProperty(key, c.asString().get());
     }
 }

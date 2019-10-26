@@ -32,6 +32,8 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
@@ -59,6 +61,7 @@ public class SimpleKafkaConsumer<K, V> implements Closeable {
     private final KafkaConfigProperties properties;
 
     private AtomicBoolean closed = new AtomicBoolean(false);
+    private PartitionsAssignedLatch partitionsAssignedLatch = new PartitionsAssignedLatch();
     private String consumerId;
     private ExecutorService executorService;
     private List<String> topicNameList;
@@ -128,7 +131,7 @@ public class SimpleKafkaConsumer<K, V> implements Closeable {
         validateConsumer();
         this.executorService = executorService;
         return executorService.submit(() -> {
-            consumer.subscribe(topicNameList);
+            consumer.subscribe(topicNameList, partitionsAssignedLatch);
             try {
                 while (!closed.get()) {
                     ConsumerRecords<K, V> consumerRecords = consumer.poll(Duration.ofSeconds(5));
@@ -151,6 +154,21 @@ public class SimpleKafkaConsumer<K, V> implements Closeable {
         }
         if (this.executorService != null) {
             throw new InvalidKafkaConsumerState("Invalid consumer state, already consuming");
+        }
+    }
+
+    /**
+     * Blocks current thread until partitions are assigned,
+     * since when is consumer effectively ready to receive.
+     *
+     * @param timeout the maximum time to wait
+     * @param unit    the time unit of the timeout argument
+     * @throws java.lang.InterruptedException        if the current thread is interrupted while waiting
+     * @throws java.util.concurrent.TimeoutException if the timeout is reached
+     */
+    public void waitForPartitionAssigment(long timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+        if (!partitionsAssignedLatch.await(timeout, unit)) {
+            throw new TimeoutException("Timeout for subscription reached");
         }
     }
 
